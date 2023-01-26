@@ -13,8 +13,8 @@ From: pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime
 %post
     apt update
 
-    pip install --upgrade pip
-    pip install tqdm jsonschema jsonargparse scikit-learn
+    /opt/conda/bin/pip install --upgrade pip
+    /opt/conda/bin/pip install tqdm jsonschema jsonargparse scikit-learn
 
 %runscript
     exec python3 /entrypoint.py "$@"

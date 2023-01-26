@@ -6,7 +6,10 @@ from os import listdir, makedirs
 from os.path import join, exists, basename
 
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+from sklearn.metrics import roc_auc_score
+from sklearn import metrics
+from sklearn.metrics import log_loss
 from tqdm import tqdm
 
 from utils.abstract import AbstractDetector
@@ -19,6 +22,7 @@ from utils.reduction import (
     fit_feature_reduction_algorithm,
     use_feature_reduction_algorithm,
 )
+from IPython import embed
 
 from sklearn.preprocessing import StandardScaler
 from archs import Net2, Net3, Net4, Net5, Net6, Net7, Net2r, Net3r, Net4r, Net5r, Net6r, Net7r, Net2s, Net3s, Net4s, Net5s, Net6s, Net7s
@@ -180,11 +184,30 @@ class Detector(AbstractDetector):
 
                 X = np.vstack((X, model_feats * self.model_skew["__all__"]))
 
+        from sklearn.model_selection import train_test_split
+        num_trials=20
+        roc_sum = 0
+        ce_sum = 0
+        roc_sum_rf = 0
+        ce_sum_rf = 0
+        for trial in range(num_trials):
+            T_t, T_h, y_t, y_h = train_test_split(X, y, test_size=0.05, shuffle=True, stratify=y)
+            neigh = RandomForestClassifier()
+            neigh.fit(T_t, y_t)
+            myprob = neigh.predict_proba(T_h)[:,1]
+            roc_sum += roc_auc_score(y_h, myprob)
+            ce_sum += metrics.log_loss(y_h, myprob)
+            # print(neigh.feature_importances_)
+
+        print('avg roc:', roc_sum / num_trials, 'avg ce:', ce_sum / num_trials)
+
+
         logging.info("Training RandomForestRegressor model...")
-        model = RandomForestRegressor(**self.random_forest_kwargs, random_state=0)
+        model = RandomForestClassifier()
+        # model = RandomForestRegressor(**self.random_forest_kwargs, random_state=0)
         model.fit(X, y)
 
-        logging.info("Saving RandomForestRegressor model...")
+        logging.info("Saving RandomForestRegressor model to " + self.model_filepath)
         with open(self.model_filepath, "wb") as fp:
             pickle.dump(model, fp)
 
@@ -212,7 +235,7 @@ class Detector(AbstractDetector):
             if examples_dir_entry.is_file() and examples_dir_entry.name.endswith(".npy"):
                 feature_vector = np.load(examples_dir_entry.path).reshape(1, -1)
                 feature_vector = torch.from_numpy(scaler.transform(feature_vector.astype(float))).float()
-
+                # embed()
                 pred = torch.argmax(model(feature_vector).detach()).item()
 
                 ground_tuth_filepath = examples_dir_entry.path + ".json"
@@ -263,6 +286,7 @@ class Detector(AbstractDetector):
 
         # Flatten model
         flat_models = flatten_models(model_repr_dict, model_layer_map)
+
         del model_repr_dict
         logging.info("Models flattened. Fitting feature reduction...")
 
@@ -272,19 +296,21 @@ class Detector(AbstractDetector):
         model_repr = pad_model(model_repr, model_class, models_padding_dict)
         flat_model = flatten_model(model_repr, model_layer_map[model_class])
 
-        # Inferences on examples to demonstrate how it is done for a round
-        # This is not needed for the random forest classifier
-        self.inference_on_example_data(model, examples_dirpath)
+        ####
+        # self.inference_on_example_data(model, examples_dirpath)
 
         X = (
             use_feature_reduction_algorithm(layer_transform[model_class], flat_model)
             * self.model_skew["__all__"]
         )
-
+        # embed()
+        logging.info("Reading classifier from " + self.model_filepath + "...")
         with open(self.model_filepath, "rb") as fp:
             regressor: RandomForestRegressor = pickle.load(fp)
 
-        probability = str(regressor.predict(X)[0])
+
+        probability = str(regressor.predict_proba(X.reshape(1,-1))[0][1])
+        # probability = str(regressor.predict(X.reshape(1,-1))[0])
         with open(result_filepath, "w") as fp:
             fp.write(probability)
 

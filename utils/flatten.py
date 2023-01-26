@@ -1,13 +1,28 @@
 import logging
 from collections import OrderedDict
-
+# import torch
 import numpy as np
 from tqdm import tqdm
+from IPython import embed
+
+def svd_in_dim(tensor,dim):
+    _, s, _ = np.linalg.svd(matricize_numpy(tensor,dim))
+    return s
+
+def matricize_numpy(tensor, dim):
+    myshape = tensor.shape
+    ndims = len(myshape)
+    leftdim = myshape[dim]
+    rightdim = np.prod(myshape[:dim] + myshape[dim+1:])
+    new_dim = [leftdim, rightdim]
+    transdims = [dim] + list(range(0,dim)) + list(range(dim+1,ndims))
+    return np.reshape(np.transpose(tensor, transdims), new_dim, order='F')
 
 
 def flatten_layer(model, layer_map):
     nbt_layer = None
     output = None
+    # embed()
     for layer in layer_map:
         if "num_batches_tracked" in layer:
             nbt_layer = layer
@@ -16,7 +31,8 @@ def flatten_layer(model, layer_map):
             model_layer = np.array([model[layer]]).T
         else:
             feats = model[layer].shape[0]
-            flat_layer = model[layer].flatten()
+            # flat_layer = model[layer].flatten()
+            flat_layer = svd_in_dim(model[layer],1)
             model_layer = flat_layer.reshape(feats, int(flat_layer.shape[0] / feats))
         if output is None:
             output = model_layer

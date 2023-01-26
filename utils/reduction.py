@@ -2,6 +2,7 @@ import importlib
 
 import numpy as np
 from tqdm import tqdm
+from IPython import embed
 
 
 def feature_reduction(model, weight_table, max_features):
@@ -48,9 +49,14 @@ def fit_feature_reduction_algorithm(model_dict, weight_table_params, input_featu
 
 
 def use_feature_reduction_algorithm(layer_transform, model):
-    out_model = np.array([[]])
+    # out_model = np.array([[]])
+    # for (layer, weights) in model.items():
+    #     out_model = np.hstack((out_model, layer_transform[layer].transform([weights])))
+    # embed()
+    mylist = list(model.items())
+    layer1 = np.asarray(mylist[-1][1]).squeeze()
+    layer2 = np.asarray(mylist[-2][1]).squeeze()
+    layer2len = layer2.shape[0]
 
-    for (layer, weights) in model.items():
-        out_model = np.hstack((out_model, layer_transform[layer].transform([weights])))
-
+    out_model = np.hstack((layer2[0:1], layer2[layer2len-1], layer1[0]))
     return out_model
