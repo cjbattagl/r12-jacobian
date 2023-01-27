@@ -22,7 +22,7 @@ from utils.reduction import (
     fit_feature_reduction_algorithm,
     use_feature_reduction_algorithm,
 )
-from IPython import embed
+# from IPython import embed
 
 from sklearn.preprocessing import StandardScaler
 from archs import Net2, Net3, Net4, Net5, Net6, Net7, Net2r, Net3r, Net4r, Net5r, Net6r, Net7r, Net2s, Net3s, Net4s, Net5s, Net6s, Net7s
@@ -130,7 +130,7 @@ class Detector(AbstractDetector):
         flat_models = flatten_models(model_repr_dict, model_layer_map)
         del model_repr_dict
         logging.info("Models flattened. Fitting feature reduction...")
-        embed()
+
         layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
 
         logging.info("Feature reduction applied. Creating feature file...")

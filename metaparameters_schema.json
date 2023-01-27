@@ -4,7 +4,7 @@
   "technique": "RF Regressor on Jacobian Features",
   "technique_description": "Extracts model weights and trains a random forest regressor.",
   "technique_changes": "Initial trial",
-  "commit_id": "f7eaf6573091915bcf6e8793ddac0274cfa6126f",
+  "commit_id": "b8231972737f7032b59b45fba553dbb4a5dc1d25",
   "repo_name": "https://github.com/cjbattagl/r12-jacobian/tree/cyber-pdf-dec2022",
   "required": ["train_random_forest_regressor_param_n_estimators"],
   "additionalProperties": false,
