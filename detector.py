@@ -64,27 +64,6 @@ class Detector(AbstractDetector):
             "n_estimators": metaparameters[
                 "train_random_forest_regressor_param_n_estimators"
             ],
-            "criterion": metaparameters[
-                "train_random_forest_regressor_param_criterion"
-            ],
-            "max_depth": metaparameters[
-                "train_random_forest_regressor_param_max_depth"
-            ],
-            "min_samples_split": metaparameters[
-                "train_random_forest_regressor_param_min_samples_split"
-            ],
-            "min_samples_leaf": metaparameters[
-                "train_random_forest_regressor_param_min_samples_leaf"
-            ],
-            "min_weight_fraction_leaf": metaparameters[
-                "train_random_forest_regressor_param_min_weight_fraction_leaf"
-            ],
-            "max_features": metaparameters[
-                "train_random_forest_regressor_param_max_features"
-            ],
-            "min_impurity_decrease": metaparameters[
-                "train_random_forest_regressor_param_min_impurity_decrease"
-            ],
         }
 
     def write_metaparameters(self):
@@ -96,13 +75,6 @@ class Detector(AbstractDetector):
             "train_weight_table_params_std": self.weight_table_params["std"],
             "train_weight_table_params_scaler": self.weight_table_params["scaler"],
             "train_random_forest_regressor_param_n_estimators": self.random_forest_kwargs["n_estimators"],
-            "train_random_forest_regressor_param_criterion": self.random_forest_kwargs["criterion"],
-            "train_random_forest_regressor_param_max_depth": self.random_forest_kwargs["max_depth"],
-            "train_random_forest_regressor_param_min_samples_split": self.random_forest_kwargs["min_samples_split"],
-            "train_random_forest_regressor_param_min_samples_leaf": self.random_forest_kwargs["min_samples_leaf"],
-            "train_random_forest_regressor_param_min_weight_fraction_leaf": self.random_forest_kwargs["min_weight_fraction_leaf"],
-            "train_random_forest_regressor_param_max_features": self.random_forest_kwargs["max_features"],
-            "train_random_forest_regressor_param_min_impurity_decrease": self.random_forest_kwargs["min_impurity_decrease"],
         }
 
         with open(join(self.learned_parameters_dirpath, basename(self.metaparameter_filepath)), "w") as fp:
@@ -158,7 +130,7 @@ class Detector(AbstractDetector):
         flat_models = flatten_models(model_repr_dict, model_layer_map)
         del model_repr_dict
         logging.info("Models flattened. Fitting feature reduction...")
-
+        embed()
         layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
 
         logging.info("Feature reduction applied. Creating feature file...")

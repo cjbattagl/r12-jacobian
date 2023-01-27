@@ -7,6 +7,7 @@ import warnings
 import jsonschema
 
 from detector import Detector
+# from IPython import embed
 
 warnings.filterwarnings("ignore")
 
@@ -27,6 +28,7 @@ def inference_mode(args):
     detector.infer(args.model_filepath, args.result_filepath, args.scratch_dirpath, args.examples_dirpath, args.round_training_dataset_dirpath)
 def configure_mode(args):
     # Validate config file against schema
+    # embed()
     with open(args.metaparameters_filepath) as config_file:
         config_json = json.load(config_file)
     with open(args.schema_filepath) as schema_file:
