@@ -19,11 +19,11 @@ from utils.models import create_layer_map, load_model, \
     load_models_dirpath
 from utils.padding import create_models_padding, pad_model
 from utils.reduction import (
-    fit_feature_reduction_algorithm,
     use_feature_reduction_algorithm,
 )
 # from IPython import embed
-
+from sklearn.ensemble import BaggingClassifier
+from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from archs import Net2, Net3, Net4, Net5, Net6, Net7, Net2r, Net3r, Net4r, Net5r, Net6r, Net7r, Net2s, Net3s, Net4s, Net5s, Net6s, Net7s
 import torch
@@ -49,17 +49,17 @@ class Detector(AbstractDetector):
         self.layer_transform_filepath = join(self.learned_parameters_dirpath, "layer_transform.bin")
 
         # TODO: Update skew parameters per round
-        self.model_skew = {
-            "__all__": metaparameters["infer_cyber_model_skew"],
-        }
+        # self.model_skew = {
+        #     "__all__": metaparameters["infer_cyber_model_skew"],
+        # }
 
-        self.input_features = metaparameters["train_input_features"]
-        self.weight_table_params = {
-            "random_seed": metaparameters["train_weight_table_random_state"],
-            "mean": metaparameters["train_weight_table_params_mean"],
-            "std": metaparameters["train_weight_table_params_std"],
-            "scaler": metaparameters["train_weight_table_params_scaler"],
-        }
+        # self.input_features = metaparameters["train_input_features"]
+        # self.weight_table_params = {
+        #     "random_seed": metaparameters["train_weight_table_random_state"],
+        #     "mean": metaparameters["train_weight_table_params_mean"],
+        #     "std": metaparameters["train_weight_table_params_std"],
+        #     "scaler": metaparameters["train_weight_table_params_scaler"],
+        # }
         self.random_forest_kwargs = {
             "n_estimators": metaparameters[
                 "train_random_forest_regressor_param_n_estimators"
@@ -68,12 +68,6 @@ class Detector(AbstractDetector):
 
     def write_metaparameters(self):
         metaparameters = {
-            "infer_cyber_model_skew": self.model_skew["__all__"],
-            "train_input_features": self.input_features,
-            "train_weight_table_random_state": self.weight_table_params["random_seed"],
-            "train_weight_table_params_mean": self.weight_table_params["mean"],
-            "train_weight_table_params_std": self.weight_table_params["std"],
-            "train_weight_table_params_scaler": self.weight_table_params["scaler"],
             "train_random_forest_regressor_param_n_estimators": self.random_forest_kwargs["n_estimators"],
         }
 
@@ -88,8 +82,10 @@ class Detector(AbstractDetector):
         Args:
             models_dirpath: str - Path to the list of model to use for training
         """
+
+        # TODO: This is still just random, not a grid search
         for random_seed in np.random.randint(1000, 9999, 10):
-            self.weight_table_params["random_seed"] = random_seed
+            # self.weight_table_params["random_seed"] = random_seed
             self.manual_configure(models_dirpath)
 
     def manual_configure(self, models_dirpath: str):
@@ -129,11 +125,10 @@ class Detector(AbstractDetector):
         # Flatten models
         flat_models = flatten_models(model_repr_dict, model_layer_map)
         del model_repr_dict
-        logging.info("Models flattened. Fitting feature reduction...")
+        logging.info("Models flattened.")
 
-        layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
 
-        logging.info("Feature reduction applied. Creating feature file...")
+        # logging.info("Feature reduction applied. Creating feature file...")
         X = None
         y = []
 
@@ -146,37 +141,39 @@ class Detector(AbstractDetector):
                 model = models.pop(0)
                 y.append(model_ground_truth_dict[model_arch][model_index])
                 model_index += 1
-
-                model_feats = use_feature_reduction_algorithm(
-                    layer_transform[model_arch], model
-                )
+                # embed()
+                model_feats = use_feature_reduction_algorithm(model)
                 if X is None:
                     X = model_feats
                     continue
 
-                X = np.vstack((X, model_feats * self.model_skew["__all__"]))
+                X = np.vstack((X, model_feats))
 
         from sklearn.model_selection import train_test_split
-        num_trials=20
+        num_trials=4
         roc_sum = 0
         ce_sum = 0
         roc_sum_rf = 0
         ce_sum_rf = 0
-        for trial in range(num_trials):
-            T_t, T_h, y_t, y_h = train_test_split(X, y, test_size=0.05, shuffle=True, stratify=y)
-            neigh = RandomForestClassifier()
-            neigh.fit(T_t, y_t)
-            myprob = neigh.predict_proba(T_h)[:,1]
-            roc_sum += roc_auc_score(y_h, myprob)
-            ce_sum += metrics.log_loss(y_h, myprob)
-            # print(neigh.feature_importances_)
+        # embed()
+        # for trial in range(num_trials):
+        #     T_t, T_h, y_t, y_h = train_test_split(X, y, test_size=0.3, shuffle=True, stratify=y)
+        #     pipeline = make_pipeline(StandardScaler(), RandomForestClassifier(max_depth=4, n_estimators=100))
+        #     neigh = BaggingClassifier(base_estimator=pipeline, n_estimators=100, random_state=1, n_jobs=16)
+        #     neigh.fit(T_t, y_t)
+        #     myprob = neigh.predict_proba(T_h)[:,1]
+        #     roc_sum += roc_auc_score(y_h, myprob)
+        #     ce_sum += metrics.log_loss(y_h, myprob)
+        #     # print(neigh.feature_importances_)
 
-        print('avg roc:', roc_sum / num_trials, 'avg ce:', ce_sum / num_trials)
+        # print('avg roc:', roc_sum / num_trials, 'avg ce:', ce_sum / num_trials)
 
 
         logging.info("Training RandomForestRegressor model...")
-        model = RandomForestClassifier()
+        # model = RandomForestClassifier()
         # model = RandomForestRegressor(**self.random_forest_kwargs, random_state=0)
+        pipeline = make_pipeline(StandardScaler(), RandomForestClassifier(max_depth=4, n_estimators=400))
+        model = BaggingClassifier(base_estimator=pipeline, n_estimators=100, random_state=1, n_jobs=16)
         model.fit(X, y)
 
         logging.info("Saving RandomForestRegressor model to " + self.model_filepath)
@@ -237,32 +234,8 @@ class Detector(AbstractDetector):
         with open(self.model_layer_map_filepath, "rb") as fp:
             model_layer_map = pickle.load(fp)
 
-        # List all available model and limit to the number provided
-        model_path_list = sorted(
-            [
-                join(round_training_dataset_dirpath, 'models', model)
-                for model in listdir(join(round_training_dataset_dirpath, 'models'))
-            ]
-        )
-        logging.info(f"Loading %d models...", len(model_path_list))
-
-        model_repr_dict, _ = load_models_dirpath(model_path_list)
-        logging.info("Loaded models. Flattenning...")
-
         with open(self.models_padding_dict_filepath, "rb") as fp:
             models_padding_dict = pickle.load(fp)
-
-        for model_class, model_repr_list in model_repr_dict.items():
-            for index, model_repr in enumerate(model_repr_list):
-                model_repr_dict[model_class][index] = pad_model(model_repr, model_class, models_padding_dict)
-
-        # Flatten model
-        flat_models = flatten_models(model_repr_dict, model_layer_map)
-
-        del model_repr_dict
-        logging.info("Models flattened. Fitting feature reduction...")
-
-        layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
 
         model, model_repr, model_class = load_model(model_filepath)
         model_repr = pad_model(model_repr, model_class, models_padding_dict)
@@ -272,17 +245,16 @@ class Detector(AbstractDetector):
         # self.inference_on_example_data(model, examples_dirpath)
 
         X = (
-            use_feature_reduction_algorithm(layer_transform[model_class], flat_model)
-            * self.model_skew["__all__"]
+            use_feature_reduction_algorithm(flat_model)
         )
-        # embed()
+
         logging.info("Reading classifier from " + self.model_filepath + "...")
         with open(self.model_filepath, "rb") as fp:
             regressor: RandomForestRegressor = pickle.load(fp)
 
 
         probability = str(regressor.predict_proba(X.reshape(1,-1))[0][1])
-        # probability = str(regressor.predict(X.reshape(1,-1))[0])
+
         with open(result_filepath, "w") as fp:
             fp.write(probability)
 
